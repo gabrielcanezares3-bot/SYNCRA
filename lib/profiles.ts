@@ -16,8 +16,14 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .eq('id', userId)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    throw new Error(error.message || 'Your profile could not be loaded.');
+  }
+  if (!data) {
     return null;
+  }
+  if (data.role !== 'student' && data.role !== 'teacher') {
+    throw new Error('Your account has an unrecognized role. Please contact an administrator.');
   }
 
   return data as Profile;

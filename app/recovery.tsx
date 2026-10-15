@@ -23,26 +23,41 @@ export default function RecoveryScreen() {
   const [selectedEvent, setSelectedEvent] = useState<CloudEvent | null>(null);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const profile = await getProfile(user.id);
-    if (profile?.role !== 'student') { setLoading(false); return; }
+    setLoadError(null);
+    try {
+      const profile = await getProfile(user.id);
+      if (!profile) throw new Error('Your profile could not be found.');
+      if (profile.role !== 'student') {
+        setEvents([]);
+        setRequests([]);
+        setLoadError('Attendance recovery requests are available only to student accounts.');
+        return;
+      }
 
-    const [allEvents, history, ownRequests] = await Promise.all([
-      supabase.from('events').select('*').is('archived_at', null).order('start_time', { ascending: false }).then(({ data }) => (data ?? []) as CloudEvent[]),
-      getAttendanceHistory(user.id),
-      getRecoveryRequests('student', user.id),
-    ]);
-    const attended = new Set(history.map((item) => item.eventId));
-    const pending = new Set(ownRequests.filter((item) => item.status === 'pending').map((item) => item.eventId));
-    const now = Date.now();
-    setEvents(allEvents.filter((event) => event.end_time && new Date(event.end_time).getTime() < now && !attended.has(event.event_code) && !pending.has(event.id)));
-    setRequests(ownRequests);
-    setLoading(false);
+      const [eventsResult, history, ownRequests] = await Promise.all([
+        supabase.from('events').select('*').is('archived_at', null).order('start_time', { ascending: false }),
+        getAttendanceHistory(user.id),
+        getRecoveryRequests('student', user.id),
+      ]);
+      if (eventsResult.error) throw new Error(eventsResult.error.message || 'Eligible events could not be loaded.');
+      const allEvents = (eventsResult.data ?? []) as CloudEvent[];
+      const attended = new Set(history.map((item) => item.eventId));
+      const pending = new Set(ownRequests.filter((item) => item.status === 'pending').map((item) => item.eventId));
+      const now = Date.now();
+      setEvents(allEvents.filter((event) => event.end_time && new Date(event.end_time).getTime() < now && !attended.has(event.event_code) && !pending.has(event.id)));
+      setRequests(ownRequests);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Recovery information could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -52,10 +67,15 @@ export default function RecoveryScreen() {
     if (reason.trim().length < 3) { setMessage('Please provide a short reason.'); return; }
     setSaving(true);
     setMessage(null);
-    const result = await requestAttendanceRecovery(selectedEvent.id, reason);
-    setSaving(false);
-    setMessage(result.message);
-    if (result.success) { setSelectedEvent(null); setReason(''); await load(); }
+    try {
+      const result = await requestAttendanceRecovery(selectedEvent.id, reason);
+      setMessage(result.message);
+      if (result.success) { setSelectedEvent(null); setReason(''); await load(); }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Recovery request could not be submitted.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -70,7 +90,12 @@ export default function RecoveryScreen() {
         <Text style={styles.subtitle}>If you missed a scan, you can ask your teacher to review the event after it ends.</Text>
         </EntranceView>
 
-        {loading ? <View style={styles.loading}><ActivityIndicator color={COLORS.primary} /><Text style={styles.loadingText}>Checking eligible events...</Text></View> : (
+        {loading ? <View style={styles.loading}><ActivityIndicator color={COLORS.primary} /><Text style={styles.loadingText}>Checking eligible events...</Text></View> : loadError ? (
+          <View style={styles.card}>
+            <Text accessibilityRole="alert" style={styles.message}>{loadError}</Text>
+            <AppButton title="Try again" theme="primary" icon="refresh-outline" onPress={() => void load()} />
+          </View>
+        ) : (
           <>
             <EntranceView delay={100}>
             <View style={styles.card}>

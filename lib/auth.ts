@@ -60,7 +60,6 @@ export function useAuth(): AuthState {
 
 export type SignUpProfile = {
   full_name: string;
-  role: 'student' | 'teacher';
 };
 
 export async function signUp(
@@ -71,23 +70,8 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: profile
-      ? { data: { full_name: profile.full_name, role: profile.role } }
-      : undefined,
+    options: profile ? { data: { full_name: profile.full_name } } : undefined,
   });
-  if (!error && data.session && profile) {
-    await supabase
-      .from('profiles')
-      .upsert(
-        {
-          id: data.session.user.id,
-          email,
-          full_name: profile.full_name,
-          role: profile.role,
-        },
-        { onConflict: 'id' }
-      );
-  }
   if (!error && data.session) {
     setAuth(data.session);
   }
@@ -97,30 +81,14 @@ export async function signUp(
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (!error && data.session) {
-    const user = data.session.user;
-    const metadata = user.user_metadata ?? {};
-    const role = metadata.role;
-    if (
-      (role === 'student' || role === 'teacher') &&
-      typeof metadata.full_name === 'string'
-    ) {
-      await supabase.from('profiles').upsert(
-        {
-          id: user.id,
-          email: user.email ?? email,
-          full_name: metadata.full_name,
-          role,
-        },
-        { onConflict: 'id' }
-      );
-    }
     setAuth(data.session);
   }
   return { data, error };
 }
 
 export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw new Error(error.message || 'Failed to sign out.');
   setAuth(null);
-  supabase.auth.signOut().catch(() => {});
   return { error: null };
 }

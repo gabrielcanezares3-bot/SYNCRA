@@ -63,7 +63,7 @@ export default function LoginScreen() {
     try {
       const { error: authError } = await signIn(email.trim(), password);
       if (authError) setError(authError.message);
-    } catch (err: any) { setError(err?.message || 'Unexpected error'); }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Unexpected error'); }
     finally { setLoading(false); }
   };
 

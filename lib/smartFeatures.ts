@@ -37,6 +37,19 @@ export type RecoveryRequest = {
   studentName?: string | null;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isAttendanceStatus(value: unknown): value is AttendanceStatus {
+  return value === 'present' || value === 'late' || value === 'recovered';
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function normalizeAttendanceSettings(
   settings?: Partial<AttendanceSettings>
 ): AttendanceSettings {
@@ -83,8 +96,11 @@ export async function recordSmartAttendance(
     return { success: false, message };
   }
 
-  const result = (data ?? {}) as Record<string, unknown>;
-  const status = result.status as AttendanceStatus | undefined;
+  const result: unknown = data;
+  if (!isRecord(result) || !isAttendanceStatus(result.status)) {
+    return { success: false, message: 'The attendance service returned an invalid response.' };
+  }
+  const status = result.status;
   return {
     success: true,
     status,
@@ -104,7 +120,10 @@ export async function requestAttendanceRecovery(
   });
 
   if (error) return { success: false, message: error.message || 'Recovery request could not be submitted.' };
-  return { success: true, requestId: typeof data === 'string' ? data : undefined, message: 'Recovery request submitted for teacher review.' };
+  if (!isUuid(data)) {
+    return { success: false, message: 'The server did not confirm the recovery request.' };
+  }
+  return { success: true, requestId: data, message: 'Recovery request submitted for teacher review.' };
 }
 
 export async function getRecoveryRequests(
@@ -120,17 +139,24 @@ export async function getRecoveryRequests(
     ? await base.eq('student_id', userId)
     : await base;
 
-  if (error || !data) return [];
+  if (error) throw new Error(error.message || 'Recovery requests could not be loaded.');
+  if (!data) return [];
 
   const eventIds = [...new Set(data.map((row: any) => row.event_id))];
   const studentIds = [...new Set(data.map((row: any) => row.student_id))];
-  const [{ data: events }, { data: profiles }] = await Promise.all([
-    eventIds.length ? supabase.from('events').select('id, title, event_code, created_by').in('id', eventIds) : Promise.resolve({ data: [] as any[] }),
-    studentIds.length ? supabase.from('profiles').select('id, full_name').in('id', studentIds) : Promise.resolve({ data: [] as any[] }),
+  const [eventsResult, profilesResult] = await Promise.all([
+    eventIds.length
+      ? supabase.from('events').select('id, title, event_code, created_by').in('id', eventIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    studentIds.length
+      ? supabase.from('profiles').select('id, full_name').in('id', studentIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
   ]);
+  if (eventsResult.error) throw new Error(eventsResult.error.message || 'Recovery event details could not be loaded.');
+  if (profilesResult.error) throw new Error(profilesResult.error.message || 'Recovery student details could not be loaded.');
 
-  const eventMap = new Map((events ?? []).map((event: any) => [event.id, event]));
-  const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+  const eventMap = new Map((eventsResult.data ?? []).map((event: any) => [event.id, event]));
+  const profileMap = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, profile]));
   const visible = role === 'teacher' ? data.filter((row: any) => eventMap.get(row.event_id)?.created_by === userId) : data;
 
   return visible.map((row: any) => {

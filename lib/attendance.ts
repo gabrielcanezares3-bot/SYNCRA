@@ -46,7 +46,7 @@ export async function registerAttendance(
 export async function getAttendanceHistory(
   studentId: string
 ): Promise<AttendanceRecord[]> {
-  return fetchAttendanceHistory(studentId, false);
+  return fetchAttendanceHistory(studentId, true);
 }
 
 async function fetchAttendanceHistory(

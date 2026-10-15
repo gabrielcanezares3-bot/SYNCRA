@@ -6,6 +6,9 @@ export type Event = {
   title: string;
   start: string;
   end: string;
+  venue: string;
+  description: string;
+  eventStatus?: 'active' | 'closed';
   gracePeriodMinutes?: number;
   lateReasonEnabled?: boolean;
   zoneEnabled?: boolean;
@@ -20,6 +23,9 @@ export type CloudEvent = {
   title: string;
   start_time: string | null;
   end_time: string | null;
+  venue: string | null;
+  description: string | null;
+  event_status: 'active' | 'closed';
   created_by: string | null;
   created_at: string;
   grace_period_minutes: number;
@@ -33,6 +39,13 @@ export type CloudEvent = {
 
 export async function createEvent(
   event: Event
+): Promise<{ error: string | null; eventId?: string }> {
+  return saveEvent(event);
+}
+
+export async function saveEvent(
+  event: Event,
+  eventRecordId?: string
 ): Promise<{ error: string | null; eventId?: string }> {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
@@ -53,32 +66,37 @@ export async function createEvent(
     return { error: 'Event title and code are required.' };
   }
 
-  const { data, error } = await supabase
-    .from('events')
-    .insert({
-      event_code: eventCode,
-      title,
-      start_time: event.start || null,
-      end_time: event.end || null,
-      created_by: user.id,
-      grace_period_minutes: settings.gracePeriodMinutes,
-      late_reason_enabled: settings.lateReasonEnabled,
-      zone_enabled: settings.zoneEnabled,
-      zone_lat: settings.zoneLat,
-      zone_lon: settings.zoneLon,
-      zone_radius_m: settings.zoneRadiusM,
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      return { error: 'This event code is already in use. Choose a unique code.' };
-    }
-    return { error: error.message };
+  if (!event.venue.trim() || !event.description.trim()) {
+    return { error: 'Event venue and description are required.' };
   }
 
-  return { error: null, eventId: data.id };
+  const { data, error } = await supabase.rpc('gcscan_save_event', {
+    p_event_id: eventRecordId ?? null,
+    p_event_code: eventCode,
+    p_title: title,
+    p_start_time: event.start,
+    p_end_time: event.end,
+    p_venue: event.venue.trim(),
+    p_description: event.description.trim(),
+    p_event_status: event.eventStatus ?? 'active',
+    p_grace_period_minutes: settings.gracePeriodMinutes,
+    p_late_reason_enabled: settings.lateReasonEnabled,
+    p_zone_enabled: settings.zoneEnabled,
+    p_zone_lat: settings.zoneLat,
+    p_zone_lon: settings.zoneLon,
+    p_zone_radius_m: settings.zoneRadiusM,
+  });
+  if (error) return { error: error.message || 'Event could not be saved.' };
+  if (typeof data !== 'string') return { error: 'The server did not confirm the saved event.' };
+
+  return { error: null, eventId: data };
+}
+
+export async function closeEvent(eventId: string): Promise<{ success: boolean; message: string }> {
+  const { data, error } = await supabase.rpc('gcscan_close_event', { p_event_id: eventId });
+  if (error) return { success: false, message: error.message || 'Event could not be closed.' };
+  if (data !== true) return { success: false, message: 'The event could not be found or is archived.' };
+  return { success: true, message: 'Event closed. New attendance scans are blocked.' };
 }
 
 export async function getEventsByTeacher(
@@ -86,10 +104,8 @@ export async function getEventsByTeacher(
 ): Promise<CloudEvent[]> {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user || user.id !== teacherId) {
-    return [];
+    throw new Error('Your session could not be verified. Please sign in again.');
   }
-
-  await supabase.rpc('gcscan_purge_expired_events');
 
   const { data, error } = await supabase
     .from('events')
@@ -98,18 +114,14 @@ export async function getEventsByTeacher(
     .is('archived_at', null)
     .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    return [];
-  }
+  if (error) throw new Error(error.message || 'Your events could not be loaded.');
 
-  return data as CloudEvent[];
+  return (data ?? []) as CloudEvent[];
 }
 
 export async function getEventByCode(
   code: string
 ): Promise<CloudEvent | null> {
-  await supabase.rpc('gcscan_purge_expired_events');
-
   const { data, error } = await supabase
     .from('events')
     .select('*')
@@ -117,24 +129,22 @@ export async function getEventByCode(
     .is('archived_at', null)
     .maybeSingle();
 
-  if (error || !data) {
-    return null;
-  }
+  if (error) throw new Error(error.message || 'The event could not be verified.');
+  if (!data) return null;
 
   return data as CloudEvent;
 }
 
 
 export async function getDeletedEventsByTeacher(teacherId: string): Promise<CloudEvent[]> {
-  await supabase.rpc('gcscan_purge_expired_events');
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .eq('created_by', teacherId)
     .not('archived_at', 'is', null)
     .order('archived_at', { ascending: false });
-  if (error || !data) return [];
-  return data as CloudEvent[];
+  if (error) throw new Error(error.message || 'Recently deleted events could not be loaded.');
+  return (data ?? []) as CloudEvent[];
 }
 
 export async function archiveEvent(eventId: string): Promise<{ success: boolean; message: string }> {

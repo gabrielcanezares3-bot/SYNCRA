@@ -2,6 +2,7 @@ import AmbientBackground from '@/components/AmbientBackground';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { COLORS, RADIUS, SPACE } from '@/constants/colors';
@@ -13,6 +14,8 @@ import { getProfile, type Role } from '@/lib/profiles';
 
 export default function HistoryScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const listBottomPadding = Math.max(116, Math.max(insets.bottom, 8) + 110);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<Role | null>(null);
   const [studentRecords, setStudentRecords] = useState<AttendanceRecord[]>([]);
@@ -30,7 +33,8 @@ export default function HistoryScreen() {
     setLoadError(null);
     try {
       const profile = await getProfile(user.id);
-      const currentRole = profile?.role ?? 'student';
+      if (!profile) throw new Error('Your profile could not be found.');
+      const currentRole = profile.role;
       setRole(currentRole);
       if (currentRole === 'teacher') {
         setTeacherEvents(await getTeacherEventAttendance(user.id));
@@ -130,7 +134,7 @@ export default function HistoryScreen() {
             <FlatList
               data={teacherEvents}
               keyExtractor={(item) => item.eventId}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item, index }) => (
                 <EntranceView delay={Math.min(index * 55, 330)}>
@@ -162,7 +166,7 @@ export default function HistoryScreen() {
             <FlatList
               data={studentRecords}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item, index }) => (
                 <EntranceView delay={Math.min(index * 55, 330)}>
@@ -237,32 +241,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.lg },
   pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACE.lg },
-  eyebrow: { ...TYPOGRAPHY.label, fontFamily: TYPOGRAPHY.semiboldFontFamily, color: COLORS.champagne },
+  eyebrow: { ...TYPOGRAPHY.label, fontSize: 14, lineHeight: 20, fontFamily: TYPOGRAPHY.semiboldFontFamily, color: COLORS.champagne },
   headerCopy: { flex: 1 },
   title: { ...TYPOGRAPHY.screenTitle, fontFamily: TYPOGRAPHY.displayFontFamily, color: COLORS.textPrimary, marginTop: 3 },
   headerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.glassStrong, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.champagneBorder },
-  clearHistoryButton: { alignSelf: 'flex-end', minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 13, borderRadius: 19, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(201,79,101,0.20)', marginTop: -8, marginBottom: 13 },
+  clearHistoryButton: { alignSelf: 'flex-end', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 15, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(201,79,101,0.35)', marginTop: -8, marginBottom: 13 },
   clearHistoryDisabled: { opacity: 0.45 },
   clearHistoryPressed: { transform: [{ scale: 0.97 }] },
-  clearHistoryText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 11, color: COLORS.danger },
-  summaryPanel: { minHeight: 148, borderRadius: 26, backgroundColor: COLORS.primary, padding: 17, marginBottom: 17, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  clearHistoryText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 15, color: COLORS.danger },
+  summaryPanel: { minHeight: 176, borderRadius: 26, backgroundColor: COLORS.primary, padding: 17, marginBottom: 17, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   summaryPanelTeacher: { backgroundColor: '#443EB4' },
   summaryCopy: { flex: 1, paddingRight: 7 },
-  summaryEyebrow: { fontFamily: TYPOGRAPHY.semiboldFontFamily, color: 'rgba(255,255,255,0.78)', fontSize: 8, letterSpacing: 0.9 },
-  summaryTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, color: '#FFFFFF', fontSize: 17, lineHeight: 21, marginTop: 7, maxWidth: 190 },
-  summaryCaption: { fontFamily: TYPOGRAPHY.fontFamily, color: 'rgba(255,255,255,0.76)', fontSize: 9, marginTop: 5 },
-  summaryNumbers: { minWidth: 82, height: 89, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  summaryEyebrow: { fontFamily: TYPOGRAPHY.semiboldFontFamily, color: '#FFFFFF', fontSize: 14, letterSpacing: 0.2 },
+  summaryTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, color: '#FFFFFF', fontSize: 20, lineHeight: 27, marginTop: 7 },
+  summaryCaption: { fontFamily: TYPOGRAPHY.fontFamily, color: '#FFFFFF', fontSize: 14, lineHeight: 20, marginTop: 5 },
+  summaryNumbers: { minWidth: 96, minHeight: 112, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.42)', alignItems: 'center', justifyContent: 'center', gap: 5 },
   summaryNumberBlock: { alignItems: 'center' },
   summaryNumber: { fontFamily: TYPOGRAPHY.numberFontFamily, fontSize: 19, lineHeight: 22, color: '#FFFFFF' },
-  summaryNumberLabel: { fontFamily: TYPOGRAPHY.mediumFontFamily, fontSize: 7, color: 'rgba(255,255,255,0.82)' },
+  summaryNumberLabel: { fontFamily: TYPOGRAPHY.mediumFontFamily, fontSize: 14, color: '#FFFFFF' },
   summaryDivider: { width: 48, height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   summaryDecoration: { position: 'absolute', right: 12, top: 11, width: 32, height: 32, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   loadingState: { alignItems: 'center', paddingVertical: SPACE.section },
-  loadingText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 13, color: COLORS.textSecondary, marginTop: SPACE.sm },
+  loadingText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 16, color: COLORS.textSecondary, marginTop: SPACE.sm },
   list: { paddingBottom: 116, flexGrow: 1 },
   studentTimelineRow: { flexDirection: 'row', alignItems: 'stretch', marginBottom: SPACE.sm },
   dateRail: { width: 43, alignItems: 'center', paddingTop: 15, marginRight: 8 },
-  dateMonth: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 8, letterSpacing: 0.5, color: COLORS.primary },
+  dateMonth: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 14, letterSpacing: 0.1, color: COLORS.primary },
   dateDay: { fontFamily: TYPOGRAPHY.numberFontFamily, fontSize: 16, color: COLORS.textPrimary, marginTop: 1 },
   railLine: { width: 1, flex: 1, minHeight: 18, backgroundColor: '#D8DFF0', marginTop: 5 },
   card: { flex: 1, backgroundColor: COLORS.glassStrong, borderRadius: 23, padding: 15, marginBottom: 0, borderWidth: 1, borderColor: COLORS.glassBorder, shadowColor: COLORS.shadow, shadowOpacity: 0.11, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
@@ -273,37 +277,37 @@ const styles = StyleSheet.create({
   recoveredIcon: { backgroundColor: COLORS.primaryTint },
   eventCopy: { flex: 1 },
   eventTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, fontSize: 16, color: COLORS.textPrimary },
-  meta: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 11, color: COLORS.textSecondary, marginTop: 3 },
+  meta: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 14, lineHeight: 21, color: COLORS.textSecondary, marginTop: 3 },
   countBadge: { minWidth: 58, height: 48, borderRadius: 24, backgroundColor: COLORS.champagneSoft, borderWidth: 1, borderColor: COLORS.champagneBorder, alignItems: 'center', justifyContent: 'center' },
   countText: { fontFamily: TYPOGRAPHY.numberFontFamily, fontSize: 16, color: COLORS.champagne },
-  countLabel: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 8, color: COLORS.textSecondary },
-  presentBadge: { paddingHorizontal: 9, height: 28, borderRadius: RADIUS.pill, backgroundColor: 'rgba(61,220,151,0.14)', borderWidth: 1, borderColor: 'rgba(61,220,151,0.28)', alignItems: 'center', justifyContent: 'center' },
-  presentText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 9, color: COLORS.success },
+  countLabel: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 14, color: COLORS.textPrimary },
+  presentBadge: { paddingHorizontal: 10, minHeight: 38, borderRadius: RADIUS.pill, backgroundColor: 'rgba(61,220,151,0.14)', borderWidth: 1, borderColor: 'rgba(61,220,151,0.35)', alignItems: 'center', justifyContent: 'center' },
+  presentText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 14, color: COLORS.success },
   lateBadge: { backgroundColor: 'rgba(255,194,75,0.14)', borderColor: 'rgba(255,194,75,0.28)' },
   recoveredBadge: { backgroundColor: COLORS.primaryTint, borderColor: COLORS.glassBorder },
   lateText: { color: COLORS.warning },
   recoveredText: { color: COLORS.primarySoft },
-  date: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 11, color: COLORS.textSecondary, marginTop: 12 },
-  reason: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 10, color: COLORS.textMuted, marginTop: 5 },
+  date: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 15, lineHeight: 22, color: COLORS.textSecondary, marginTop: 12 },
+  reason: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 14, lineHeight: 21, color: COLORS.textSecondary, marginTop: 5 },
   attendeeList: { marginTop: 13, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 5 },
   attendeeRow: { minHeight: 39, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(127,143,255,0.10)' },
   personDot: { width: 27, height: 27, borderRadius: 10, backgroundColor: COLORS.primaryTint, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  attendeeName: { flex: 1, fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 11, color: COLORS.textPrimary },
-  attendeeTime: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 9, color: COLORS.textMuted },
-  emptyInline: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 12, color: COLORS.textSecondary, marginTop: 13 },
+  attendeeName: { flex: 1, fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 15, lineHeight: 21, color: COLORS.textPrimary },
+  attendeeTime: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 14, color: COLORS.textSecondary },
+  emptyInline: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 15, color: COLORS.textSecondary, marginTop: 13 },
   emptyState: { backgroundColor: COLORS.glassStrong, borderRadius: RADIUS.xl, padding: SPACE.xl, alignItems: 'center', borderWidth: 1, borderColor: COLORS.glassBorder, marginTop: SPACE.sm },
   emptyIcon: { width: 68, height: 68, borderRadius: 34, backgroundColor: COLORS.champagneSoft, borderWidth: 1, borderColor: COLORS.champagneBorder, alignItems: 'center', justifyContent: 'center', marginBottom: SPACE.md },
-  emptyTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, fontSize: 17, color: COLORS.textPrimary },
-  emptyText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 13, lineHeight: 20, color: COLORS.textSecondary, textAlign: 'center', marginTop: 6 },
+  emptyTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, fontSize: 20, color: COLORS.textPrimary },
+  emptyText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 16, lineHeight: 24, color: COLORS.textSecondary, textAlign: 'center', marginTop: 6 },
   modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACE.lg, backgroundColor: 'rgba(17,31,68,0.42)' },
   confirmCard: { width: '100%', maxWidth: 380, borderRadius: 26, padding: 22, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center' },
   confirmIcon: { width: 54, height: 54, borderRadius: 19, backgroundColor: 'rgba(201,79,101,0.10)', alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
   confirmTitle: { fontFamily: TYPOGRAPHY.headingFontFamily, fontSize: 19, color: COLORS.textPrimary, textAlign: 'center' },
-  confirmText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 13, lineHeight: 20, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8 },
-  confirmError: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 12, lineHeight: 18, color: COLORS.danger, textAlign: 'center', marginTop: 12 },
+  confirmText: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 16, lineHeight: 24, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8 },
+  confirmError: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 15, lineHeight: 22, color: COLORS.danger, textAlign: 'center', marginTop: 12 },
   confirmActions: { width: '100%', flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelButton: { flex: 1, minHeight: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primaryTint },
-  cancelButtonText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 13, color: COLORS.textPrimary },
-  confirmClearButton: { flex: 1, minHeight: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.danger },
-  confirmClearText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 13, color: '#FFFFFF' },
+  cancelButton: { flex: 1, minHeight: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primaryTint },
+  cancelButtonText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 15, color: COLORS.textPrimary },
+  confirmClearButton: { flex: 1, minHeight: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.danger },
+  confirmClearText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 15, color: '#FFFFFF' },
 });

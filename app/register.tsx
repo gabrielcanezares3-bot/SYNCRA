@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Pressable,
   useWindowDimensions,
 } from 'react-native';
 import { Link } from 'expo-router';
@@ -29,8 +28,6 @@ export default function RegisterScreen() {
   const compactLayout = windowHeight <= 700;
 
   const [fullName, setFullName] = useState('');
-  const [role, setRole] =
-    useState<'student' | 'teacher'>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -71,7 +68,6 @@ export default function RegisterScreen() {
         password,
         {
           full_name: fullName.trim(),
-          role,
         }
       );
 
@@ -84,9 +80,7 @@ export default function RegisterScreen() {
         setSuccess(true);
       }
     } catch (err) {
-      setError(
-        'An unexpected error occurred. Please try again.'
-      );
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -138,7 +132,7 @@ export default function RegisterScreen() {
           <View style={styles.formCard}>
             <Text style={styles.formEyebrow}>GET STARTED</Text>
             <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Choose how you use SYNCRA, then add your school details.</Text>
+            <Text style={styles.subtitle}>Create your SYNCRA student account, then add your campus details.</Text>
 
             {success ? (
               <View style={styles.successContainer}>
@@ -171,57 +165,6 @@ export default function RegisterScreen() {
                   }
                   editable={!loading}
                 />
-
-                <Text style={styles.label}>
-                  I am a...
-                </Text>
-
-                <View style={styles.roleRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: role === 'student' }}
-                    style={[
-                      styles.roleChip,
-                      role === 'student' &&
-                        styles.roleChipActive,
-                    ]}
-                    onPress={() => setRole('student')}
-                    disabled={loading}
-                  >
-                    <Text
-                      style={[
-                        styles.roleChipText,
-                        role === 'student' &&
-                          styles.roleChipTextActive,
-                      ]}
-                    >
-                      Student
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: role === 'teacher' }}
-                    style={[
-                      styles.roleChip,
-                      styles.roleChipLast,
-                      role === 'teacher' &&
-                        styles.roleChipActive,
-                    ]}
-                    onPress={() => setRole('teacher')}
-                    disabled={loading}
-                  >
-                    <Text
-                      style={[
-                        styles.roleChipText,
-                        role === 'teacher' &&
-                          styles.roleChipTextActive,
-                      ]}
-                    >
-                      Teacher
-                    </Text>
-                  </Pressable>
-                </View>
 
                 <Text style={styles.label}>
                   Email
@@ -343,12 +286,6 @@ const styles = StyleSheet.create({
   form: { width: '100%' },
   label: { ...TYPOGRAPHY.label, fontFamily: TYPOGRAPHY.semiboldFontFamily, color: COLORS.textSecondary, marginTop: 18, marginBottom: 7, fontSize: 9, letterSpacing: 0.65 },
   input: { minHeight: 54, backgroundColor: '#F6F8FD', borderRadius: 15, borderWidth: 1, borderColor: COLORS.pearlBorder, paddingHorizontal: 13, paddingVertical: 12, fontFamily: TYPOGRAPHY.fontFamily, fontSize: 13, color: COLORS.pearlText },
-  roleRow: { flexDirection: 'row', gap: 9 },
-  roleChip: { flex: 1, minHeight: 52, backgroundColor: '#F6F8FD', borderRadius: 15, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center' },
-  roleChipLast: { marginRight: 0 },
-  roleChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  roleChipText: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 12, color: COLORS.textSecondary },
-  roleChipTextActive: { color: COLORS.textOnPrimary },
   errorBox: { marginTop: 17, padding: 12, borderRadius: 17, backgroundColor: 'rgba(201,79,101,0.10)', borderWidth: 1, borderColor: 'rgba(201,79,101,0.24)' },
   error: { fontFamily: TYPOGRAPHY.fontFamily, fontSize: 12, lineHeight: 18, color: COLORS.danger },
   loader: { minHeight: 64, alignItems: 'center', justifyContent: 'center' },

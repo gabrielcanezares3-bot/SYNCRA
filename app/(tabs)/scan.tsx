@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth';
 import { registerAttendance } from '@/lib/attendance';
-import { getEventByCode } from '@/lib/events';
+import { getEventByCode, type CloudEvent } from '@/lib/events';
 import { LATE_REASONS, type LateReason } from '@/lib/smartFeatures';
 import { parseQRPayload } from '@/lib/qr';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -132,8 +132,17 @@ export default function ScanScreen() {
     setScanned(true); setLastData(data);
     const parsed = parseQRPayload(data);
     if (!parsed.ok) { setMessage(parsed.message); setSuccess(false); scanBusy.current = false; return; }
-    const event = await getEventByCode(parsed.payload.event);
+    let event: CloudEvent | null;
+    try {
+      event = await getEventByCode(parsed.payload.event);
+    } catch (eventError) {
+      setMessage(eventError instanceof Error ? eventError.message : 'The event could not be verified.');
+      setSuccess(false);
+      scanBusy.current = false;
+      return;
+    }
     if (!event) { setMessage('This event could not be verified.'); setSuccess(false); scanBusy.current = false; return; }
+    if (event.event_status === 'closed') { setMessage('Attendance for this event is closed.'); setSuccess(false); scanBusy.current = false; return; }
     setLateReasonEnabled(event.late_reason_enabled);
     setZoneEnabled(event.zone_enabled);
     setPendingScan(data);
