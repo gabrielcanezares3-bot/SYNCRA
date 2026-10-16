@@ -1,6 +1,6 @@
 import AmbientBackground from '@/components/AmbientBackground';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -25,35 +25,57 @@ export default function HistoryScreen() {
   const [clearingHistory, setClearingHistory] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const loadGeneration = useRef(0);
   const lateCount = studentRecords.filter((record) => record.status === 'late').length;
   const teacherScanCount = teacherEvents.reduce((total, event) => total + event.attendeeCount, 0);
 
-  const load = useCallback(async () => {
-    if (!user) { setLoading(false); return; }
+  const load = useCallback(async (isActive: () => boolean = () => true) => {
+    if (!user) {
+      if (isActive()) {
+        setRole(null);
+        setStudentRecords([]);
+        setTeacherEvents([]);
+        setLoadError(null);
+        setLoading(false);
+      }
+      return;
+    }
     setLoadError(null);
     try {
       const profile = await getProfile(user.id);
+      if (!isActive()) return;
       if (!profile) throw new Error('Your profile could not be found.');
       const currentRole = profile.role;
       setRole(currentRole);
       if (currentRole === 'teacher') {
-        setTeacherEvents(await getTeacherEventAttendance(user.id));
+        const events = await getTeacherEventAttendance(user.id);
+        if (!isActive()) return;
+        setTeacherEvents(events);
         setStudentRecords([]);
         setHistoryWasCleared(false);
       } else {
         const history = await getVisibleAttendanceHistory(user.id);
+        if (!isActive()) return;
         setStudentRecords(history.records);
         setHistoryWasCleared(history.wasCleared);
         setTeacherEvents([]);
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Attendance history could not be loaded.');
+      if (isActive()) {
+        setLoadError(error instanceof Error ? error.message : 'Attendance history could not be loaded.');
+      }
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
   }, [user]);
 
-  useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    const generation = ++loadGeneration.current;
+    const isActive = () => loadGeneration.current === generation;
+    setLoading(true);
+    void load(isActive);
+    return () => { loadGeneration.current += 1; };
+  }, [load]));
 
   const handleClearHistory = async () => {
     if (!user || role !== 'student' || studentRecords.length === 0 || clearingHistory) return;

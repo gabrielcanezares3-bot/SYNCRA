@@ -183,15 +183,12 @@ export default function TabLayout() {
   const isTeacherNavigation = isAdministrator === false && role === 'teacher';
 
   useEffect(() => {
+    if (!session) return;
+
     let active = true;
     setRole(null);
     setIsAdministrator(null);
     const refreshAccess = () => {
-      if (!session) {
-        setRole(null);
-        setIsAdministrator(false);
-        return;
-      }
       Promise.allSettled([
         getProfile(session.user.id),
         checkAdministratorAccess(),

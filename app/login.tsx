@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -10,14 +10,12 @@ import AppButton from '@/components/AppButton';
 import EntranceView from '@/components/EntranceView';
 import { COLORS, RADIUS, SPACE } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
-import { signIn, useAuth } from '@/lib/auth';
+import { signIn } from '@/lib/auth';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const compactLayout = windowHeight <= 700;
-  const router = useRouter();
-  const { session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +25,6 @@ export default function LoginScreen() {
   const logoGlow = useRef(new Animated.Value(0)).current;
   const emailFocusProgress = useRef(new Animated.Value(0)).current;
   const passwordFocusProgress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => { if (session) router.replace('/(tabs)'); }, [session]);
 
   useEffect(() => {
     let mounted = true;

@@ -25,8 +25,21 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   if (data.role !== 'student' && data.role !== 'teacher') {
     throw new Error('Your account has an unrecognized role. Please contact an administrator.');
   }
+  if (
+    data.id !== userId ||
+    typeof data.email !== 'string' ||
+    data.email.trim().length === 0 ||
+    (data.full_name !== null && typeof data.full_name !== 'string')
+  ) {
+    throw new Error('Your profile is incomplete. Please contact an administrator.');
+  }
 
-  return data as Profile;
+  return {
+    id: data.id,
+    email: data.email,
+    full_name: data.full_name,
+    role: data.role,
+  };
 }
 
 export async function updateProfile(

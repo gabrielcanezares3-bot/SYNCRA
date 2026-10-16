@@ -97,6 +97,7 @@ export default function TeacherScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [liveEvent, setLiveEvent] = useState<TeacherEventAttendance | null>(null);
   const [insights, setInsights] = useState<AttendanceInsight[]>([]);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
@@ -167,6 +168,10 @@ export default function TeacherScreen() {
     let active = true;
     getTeacherAttendanceInsights(user.id).then((data) => {
       if (active) setInsights(data);
+    }).catch((error: unknown) => {
+      if (active) {
+        setRoleError(error instanceof Error ? error.message : 'Attendance insights could not be loaded.');
+      }
     });
 
     return () => {
@@ -188,7 +193,14 @@ export default function TeacherScreen() {
       setLiveLoading(true);
       try {
         const data = await getLiveEventAttendance(user.id, selectedEventId);
-        if (active && version === refreshVersion) setLiveEvent(data);
+        if (active && version === refreshVersion) {
+          setLiveEvent(data);
+          setLiveError(null);
+        }
+      } catch (error) {
+        if (active && version === refreshVersion) {
+          setLiveError(error instanceof Error ? error.message : 'Live attendance could not be loaded.');
+        }
       } finally {
         if (active && version === refreshVersion) setLiveLoading(false);
       }
@@ -832,6 +844,8 @@ export default function TeacherScreen() {
               ))}
             </ScrollView>
           )}
+
+          {liveError && <Text accessibilityRole="alert" style={styles.lockSubtitle}>{liveError}</Text>}
 
           {selectedEventId && liveEvent ? (
             <>

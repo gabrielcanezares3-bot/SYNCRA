@@ -46,23 +46,18 @@ export async function registerAttendance(
 export async function getAttendanceHistory(
   studentId: string
 ): Promise<AttendanceRecord[]> {
-  return fetchAttendanceHistory(studentId, true);
+  return fetchAttendanceHistory(studentId);
 }
 
-async function fetchAttendanceHistory(
-  studentId: string,
-  throwOnError: boolean
-): Promise<AttendanceRecord[]> {
+async function fetchAttendanceHistory(studentId: string): Promise<AttendanceRecord[]> {
   const { data, error } = await supabase
     .from('attendance')
     .select('id, scanned_at, attendance_status, late_reason, events ( event_code, title )')
     .eq('student_id', studentId)
     .order('scanned_at', { ascending: false });
 
-  if (error || !data) {
-    if (throwOnError && error) throw new Error(error.message || 'Attendance history could not be loaded.');
-    return [];
-  }
+  if (error) throw new Error(error.message || 'Attendance history could not be loaded.');
+  if (!data) throw new Error('Attendance history could not be loaded.');
 
   return data.map((row: any) => ({
     id: row.id,
@@ -74,13 +69,26 @@ async function fetchAttendanceHistory(
   }));
 }
 
-const HISTORY_CLEARED_AT_KEY = 'gcscan:attendance-history-cleared';
+const HISTORY_CLEARED_AT_KEY = 'gcscan.attendance-history-cleared';
+const LEGACY_WEB_HISTORY_CLEARED_AT_KEY = 'gcscan:attendance-history-cleared';
+
+function getHistoryClearTimestampKey(studentId: string): string {
+  const key = `${HISTORY_CLEARED_AT_KEY}.${studentId}`;
+  if (!/^[A-Za-z0-9._-]+$/.test(key)) {
+    throw new Error('Your account ID cannot be used to access saved attendance settings.');
+  }
+  return key;
+}
 
 async function getHistoryClearTimestamp(studentId: string): Promise<number | null> {
-  const key = `${HISTORY_CLEARED_AT_KEY}:${studentId}`;
-  const stored = Platform.OS === 'web'
-    ? globalThis.localStorage.getItem(key)
-    : await SecureStore.getItemAsync(key);
+  const key = getHistoryClearTimestampKey(studentId);
+  let stored: string | null;
+  if (Platform.OS === 'web') {
+    stored = globalThis.localStorage.getItem(key)
+      ?? globalThis.localStorage.getItem(`${LEGACY_WEB_HISTORY_CLEARED_AT_KEY}:${studentId}`);
+  } else {
+    stored = await SecureStore.getItemAsync(key);
+  }
 
   if (!stored) return null;
   const timestamp = Date.parse(stored);
@@ -91,7 +99,7 @@ async function getHistoryClearTimestamp(studentId: string): Promise<number | nul
 }
 
 async function saveHistoryClearTimestamp(studentId: string, timestamp: string): Promise<void> {
-  const key = `${HISTORY_CLEARED_AT_KEY}:${studentId}`;
+  const key = getHistoryClearTimestampKey(studentId);
   if (Platform.OS === 'web') {
     globalThis.localStorage.setItem(key, timestamp);
     return;
@@ -111,7 +119,7 @@ export async function getVisibleAttendanceHistory(
 ): Promise<{ records: AttendanceRecord[]; wasCleared: boolean }> {
   await verifyCurrentStudent(studentId);
   const [records, clearedAt] = await Promise.all([
-    fetchAttendanceHistory(studentId, true),
+    fetchAttendanceHistory(studentId),
     getHistoryClearTimestamp(studentId),
   ]);
   if (clearedAt === null) return { records, wasCleared: false };

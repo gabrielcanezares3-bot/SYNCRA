@@ -82,9 +82,9 @@ export async function getTeacherAttendanceInsights(
     .eq('created_by', teacherId)
     .is('archived_at', null);
 
-  if (eventError || !events || events.length < 2) {
-    return [];
-  }
+  if (eventError) throw new Error(eventError.message || 'Attendance insights could not be loaded.');
+  if (!events) throw new Error('Attendance insights could not be loaded.');
+  if (events.length < 2) return [];
 
   const eventIds = events.map((event: any) => event.id);
   const { data: attendance, error: attendanceError } = await supabase
@@ -92,9 +92,9 @@ export async function getTeacherAttendanceInsights(
     .select('event_id, student_id, scanned_at')
     .in('event_id', eventIds);
 
-  if (attendanceError || !attendance || attendance.length < 3) {
-    return [];
-  }
+  if (attendanceError) throw new Error(attendanceError.message || 'Attendance insights could not be loaded.');
+  if (!attendance) throw new Error('Attendance insights could not be loaded.');
+  if (attendance.length < 3) return [];
 
   const counts = new Map<string, number>();
   attendance.forEach((row: any) => {

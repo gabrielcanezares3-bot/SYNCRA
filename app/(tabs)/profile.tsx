@@ -1,6 +1,6 @@
 import AmbientBackground from '@/components/AmbientBackground';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -34,7 +34,7 @@ function formatWorkflowError(error: unknown, section: string): string {
 }
 
 export default function ProfileScreen() {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdministrator, setIsAdministrator] = useState<boolean | null>(null);
@@ -58,6 +58,7 @@ export default function ProfileScreen() {
   const [membershipError, setMembershipError] = useState<string | null>(null);
   const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
   const router = useRouter();
+  const profileLoadGeneration = useRef(0);
   const avatarGlow = useSharedValue(0);
   const reduceMotion = useReducedMotion();
   const avatarGlowStyle = useAnimatedStyle(() => ({
@@ -65,7 +66,9 @@ export default function ProfileScreen() {
     transform: [{ scale: 0.96 + avatarGlow.value * 0.08 }],
   }));
 
-  const refreshWorkflow = useCallback(async (): Promise<boolean | null> => {
+  const refreshWorkflow = useCallback(async (
+    isCurrent: () => boolean = () => true
+  ): Promise<boolean | null> => {
     setWorkflowLoading(true);
     setTeacherRequests([]);
     setNotifications([]);
@@ -78,13 +81,17 @@ export default function ProfileScreen() {
         checkAdministratorAccess(),
         getMyNotifications(),
       ]);
+      if (!isCurrent()) return null;
       if (accessResult.status === 'fulfilled') {
         setIsAdministrator(accessResult.value);
         verifiedAdministrator = accessResult.value;
         if (!accessResult.value) {
           try {
-            setTeacherRequests(await getMyTeacherAccessRequests());
+            const requests = await getMyTeacherAccessRequests();
+            if (!isCurrent()) return null;
+            setTeacherRequests(requests);
           } catch (requestError) {
+            if (!isCurrent()) return null;
             setTeacherRequests([]);
             setRequestWorkflowError(formatWorkflowError(requestError, 'Teacher request history'));
           }
@@ -104,12 +111,10 @@ export default function ProfileScreen() {
         setNotificationsError(formatWorkflowError(notificationsResult.reason, 'Notifications'));
       }
     } finally {
-      setWorkflowLoading(false);
+      if (isCurrent()) setWorkflowLoading(false);
     }
     return verifiedAdministrator;
   }, []);
-
-  useEffect(() => { if (!session) router.replace('/login'); }, [session]);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -121,7 +126,19 @@ export default function ProfileScreen() {
   }, [avatarGlow, reduceMotion]);
 
   const loadProfile = useCallback(async () => {
-    if (!user) return;
+    const generation = ++profileLoadGeneration.current;
+    const isCurrent = () => profileLoadGeneration.current === generation;
+    if (!user) {
+      setProfile(null);
+      setIsAdministrator(null);
+      setStudentInsights(null);
+      setTeacherOverview(null);
+      setTeacherRequests([]);
+      setNotifications([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setProfile(null);
     setIsAdministrator(null);
@@ -131,10 +148,12 @@ export default function ProfileScreen() {
     setLoadError(null);
     try {
       const currentProfile = await getProfile(user.id);
+      if (!isCurrent()) return;
       if (!currentProfile) throw new Error('Your profile could not be loaded. Please try again.');
       setProfile(currentProfile);
       setDraftName(currentProfile.full_name ?? '');
-      const isAdmin = await refreshWorkflow();
+      const isAdmin = await refreshWorkflow(isCurrent);
+      if (!isCurrent()) return;
       if (isAdmin === null) {
         setStudentInsights(null);
         setTeacherOverview(null);
@@ -146,20 +165,29 @@ export default function ProfileScreen() {
           setTeacherOverview(null);
           return;
         }
-        setStudentInsights(await getStudentAttendanceInsights(user.id));
+        const insights = await getStudentAttendanceInsights(user.id);
+        if (!isCurrent()) return;
+        setStudentInsights(insights);
         setTeacherOverview(null);
       } else {
-        setTeacherOverview(await getTeacherProfileOverview(user.id));
+        const overview = await getTeacherProfileOverview(user.id);
+        if (!isCurrent()) return;
+        setTeacherOverview(overview);
         setStudentInsights(null);
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Your profile could not be loaded.');
+      if (isCurrent()) {
+        setLoadError(error instanceof Error ? error.message : 'Your profile could not be loaded.');
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [refreshWorkflow, user]);
 
-  useFocusEffect(useCallback(() => { loadProfile(); }, [loadProfile]));
+  useFocusEffect(useCallback(() => {
+    void loadProfile();
+    return () => { profileLoadGeneration.current += 1; };
+  }, [loadProfile]));
 
   const handleSaveName = async () => {
     if (!user) return;
@@ -688,6 +716,7 @@ function NotificationsCard({
 
 function StudentInsightsCard({ insights }: { insights: StudentAttendanceInsights }) {
   const maxMonthly = Math.max(...insights.monthlyActivity.map((month) => month.count), 1);
+  const hasMonthlyActivity = insights.monthlyActivity.some((month) => month.count > 0);
   const milestones = [
     { count: 1, title: 'First check-in', icon: 'sparkles-outline' as const },
     { count: 5, title: 'Five check-ins', icon: 'ribbon-outline' as const },
@@ -708,15 +737,19 @@ function StudentInsightsCard({ insights }: { insights: StudentAttendanceInsights
         </View>
         {insights.recovered > 0 && <View style={styles.recoveredSummary}><Ionicons name="refresh-outline" size={15} color={COLORS.primary} /><Text style={styles.recoveredSummaryText}>{insights.recovered} recovered check-in{insights.recovered === 1 ? '' : 's'}</Text></View>}
         <View style={styles.chartHeading}><Text style={styles.chartTitle}>Monthly activity</Text><Text style={styles.chartRange}>LAST 6 MONTHS</Text></View>
-        <View style={styles.chart}>
-          {insights.monthlyActivity.map((month) => (
-            <View key={month.key} style={styles.chartColumn}>
-              <Text style={styles.chartCount}>{month.count || ''}</Text>
-              <View style={styles.chartTrack}><View style={[styles.chartBar, { height: month.count === 0 ? 4 : Math.max(9, (month.count / maxMonthly) * 57) }]} /></View>
-              <Text style={styles.chartLabel}>{month.label}</Text>
-            </View>
-          ))}
-        </View>
+        {hasMonthlyActivity ? (
+          <View style={styles.chart}>
+            {insights.monthlyActivity.map((month) => (
+              <View key={month.key} style={styles.chartColumn}>
+                <Text style={styles.chartCount}>{month.count || ''}</Text>
+                <View style={styles.chartTrack}><View style={[styles.chartBar, { height: month.count === 0 ? 4 : Math.max(9, (month.count / maxMonthly) * 57) }]} /></View>
+                <Text style={styles.chartLabel}>{month.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.chartEmpty}>No check-ins in the last six months.</Text>
+        )}
       </View>
       <View style={styles.milestoneCard}>
         <View style={styles.sectionHeading}>
@@ -843,12 +876,13 @@ const styles = StyleSheet.create({
   chartHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, marginBottom: 6 },
   chartTitle: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 16, color: COLORS.textPrimary },
   chartRange: { fontFamily: TYPOGRAPHY.semiboldFontFamily, fontSize: 14, letterSpacing: 0.1, color: COLORS.textSecondary },
-  chart: { minHeight: 132, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', paddingTop: 8 },
-  chartColumn: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  chart: { height: 108, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
+  chartColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   chartCount: { minHeight: 20, fontFamily: TYPOGRAPHY.mediumFontFamily, fontSize: 14, color: COLORS.textSecondary },
   chartTrack: { height: 59, width: 19, borderRadius: 10, backgroundColor: '#EDF1FA', justifyContent: 'flex-end', overflow: 'hidden' },
   chartBar: { width: '100%', borderRadius: 10, backgroundColor: COLORS.primary },
   chartLabel: { fontFamily: TYPOGRAPHY.mediumFontFamily, fontSize: 14, color: COLORS.textSecondary, marginTop: 5 },
+  chartEmpty: { marginTop: 4, paddingVertical: 8, fontFamily: TYPOGRAPHY.fontFamily, fontSize: 14, lineHeight: 20, color: COLORS.textSecondary },
   milestoneRow: { minHeight: 47, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 5, paddingTop: 5 },
   milestoneIcon: { width: 32, height: 32, borderRadius: 12, backgroundColor: '#F0F2F8', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   milestoneIconActive: { backgroundColor: COLORS.primaryTint },

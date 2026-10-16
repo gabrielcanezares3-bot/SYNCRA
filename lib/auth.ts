@@ -20,7 +20,7 @@ function notify() {
   listeners.forEach((listener) => listener());
 }
 
-export function setAuth(session: Session | null) {
+function setAuth(session: Session | null) {
   globalState = {
     session,
     user: session?.user ?? null,
@@ -36,9 +36,6 @@ function ensureAuthListener() {
   authListenerStarted = true;
   supabase.auth.onAuthStateChange((_event, session) => {
     setAuth(session);
-  });
-  supabase.auth.getSession().then(({ data }) => {
-    setAuth(data.session);
   });
 }
 
@@ -72,23 +69,16 @@ export async function signUp(
     password,
     options: profile ? { data: { full_name: profile.full_name } } : undefined,
   });
-  if (!error && data.session) {
-    setAuth(data.session);
-  }
   return { data, error };
 }
 
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (!error && data.session) {
-    setAuth(data.session);
-  }
   return { data, error };
 }
 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(error.message || 'Failed to sign out.');
-  setAuth(null);
   return { error: null };
 }
