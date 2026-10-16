@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Reanimated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { COLORS } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
 import { checkAdministratorAccess } from '@/lib/admin';
@@ -14,14 +14,19 @@ const AnimatedPressable = Reanimated.createAnimatedComponent(Pressable);
 
 function TabIcon({ focused, color, name }: { focused: boolean; color: string; name: keyof typeof Ionicons.glyphMap }) {
   const progress = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      progress.setValue(focused ? 1 : 0);
+      return;
+    }
     Animated.spring(progress, {
       toValue: focused ? 1 : 0,
       tension: 190,
       friction: 14,
       useNativeDriver: true,
     }).start();
-  }, [focused, progress]);
+  }, [focused, progress, reduceMotion]);
 
   return (
     <Animated.View style={[styles.tabIcon, { transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }] }]}>
@@ -45,6 +50,7 @@ function ScanTabButton({
   narrow?: boolean;
 }) {
   const focused = accessibilityState?.selected === true;
+  const reduceMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
@@ -52,8 +58,17 @@ function ScanTabButton({
       accessibilityRole="button"
       accessibilityLabel="Scan"
       onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.95, { damping: 14, stiffness: 280 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 13, stiffness: 220 }); }}
+      onPressIn={() => {
+        if (reduceMotion) return;
+        scale.value = withSpring(0.97, { damping: 14, stiffness: 260 });
+      }}
+      onPressOut={() => {
+        if (reduceMotion) {
+          scale.value = 1;
+          return;
+        }
+        scale.value = withSpring(1, { damping: 13, stiffness: 220 });
+      }}
       style={[styles.scanWrap, compact && styles.scanWrapCompact, pressStyle]}
     >
       <View style={[styles.scanGlow, compact && styles.scanGlowCompact, narrow && styles.scanGlowNarrow, focused && styles.scanGlowActive]} pointerEvents="none" />

@@ -935,6 +935,7 @@ export default function TeacherScreen() {
         <View style={styles.modalBackdrop}>
           <ScrollView contentContainerStyle={styles.modalScrollContent}>
             {detailsEvent && (
+              <EntranceView>
               <View style={styles.detailsCard}>
                 <View style={styles.detailsHeader}>
                   <View style={styles.detailsHeaderCopy}>
@@ -1004,6 +1005,7 @@ export default function TeacherScreen() {
                   </View>
                 )}
               </View>
+              </EntranceView>
             )}
           </ScrollView>
         </View>

@@ -199,6 +199,7 @@ export default function HistoryScreen() {
         onRequestClose={() => { if (!clearingHistory) setConfirmClear(false); }}
       >
         <View style={styles.modalBackdrop}>
+          <EntranceView>
           <View accessibilityRole="alert" style={styles.confirmCard}>
             <View style={styles.confirmIcon}><Ionicons name="eye-off-outline" size={23} color={COLORS.danger} /></View>
             <Text style={styles.confirmTitle}>Clear your history?</Text>
@@ -213,6 +214,7 @@ export default function HistoryScreen() {
               </Pressable>
             </View>
           </View>
+          </EntranceView>
         </View>
       </Modal>
     </View>

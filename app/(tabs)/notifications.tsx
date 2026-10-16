@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import EntranceView from '@/components/EntranceView';
 
 type ScreenState = 'loading' | 'ready' | 'denied' | 'error';
 
@@ -146,8 +147,9 @@ export default function NotificationsScreen() {
           </View>
         ) : teacherMode ? (
           <View style={styles.list}>
-            {recoveryRequests.map((request) => (
-              <View key={request.id} style={styles.notificationCard}>
+            {recoveryRequests.map((request, index) => (
+              <EntranceView key={request.id} delay={Math.min(index * 55, 300)}>
+              <View style={styles.notificationCard}>
                 <View style={styles.notificationHeader}>
                   <View style={styles.notificationIcon}><Ionicons name="person-outline" size={17} color={COLORS.primary} /></View>
                   <View style={styles.notificationCopy}>
@@ -165,7 +167,7 @@ export default function NotificationsScreen() {
                       accessibilityLabel={`Reject recovery request from ${request.studentName || 'student'}`}
                       disabled={busyRequestId === request.id}
                       onPress={() => { void handleReviewRecovery(request, 'rejected'); }}
-                      style={[styles.reviewButton, styles.rejectButton, busyRequestId === request.id && styles.disabledButton]}
+                      style={({ pressed }) => [styles.reviewButton, styles.rejectButton, busyRequestId === request.id && styles.disabledButton, pressed && styles.pressed]}
                     >
                       {busyRequestId === request.id ? <ActivityIndicator size="small" color={COLORS.danger} /> : <><Ionicons name="close" size={17} color={COLORS.danger} /><Text style={styles.rejectText}>Reject</Text></>}
                     </Pressable>
@@ -174,7 +176,7 @@ export default function NotificationsScreen() {
                       accessibilityLabel={`Approve recovery request from ${request.studentName || 'student'}`}
                       disabled={busyRequestId === request.id}
                       onPress={() => { void handleReviewRecovery(request, 'approved'); }}
-                      style={[styles.reviewButton, styles.approveButton, busyRequestId === request.id && styles.disabledButton]}
+                      style={({ pressed }) => [styles.reviewButton, styles.approveButton, busyRequestId === request.id && styles.disabledButton, pressed && styles.pressed]}
                     >
                       {busyRequestId === request.id
                         ? <ActivityIndicator size="small" color={COLORS.success} />
@@ -183,6 +185,7 @@ export default function NotificationsScreen() {
                   </View>
                 )}
               </View>
+              </EntranceView>
             ))}
           </View>
         ) : notifications.length === 0 ? (
@@ -193,8 +196,9 @@ export default function NotificationsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {notifications.map((notification) => (
-              <View key={notification.id} style={styles.notificationCard}>
+            {notifications.map((notification, index) => (
+              <EntranceView key={notification.id} delay={Math.min(index * 55, 300)}>
+              <View style={styles.notificationCard}>
                 <View style={styles.notificationHeader}>
                   <View style={styles.notificationIcon}>
                     <Ionicons name="notifications-outline" size={17} color={COLORS.primary} />
@@ -219,6 +223,7 @@ export default function NotificationsScreen() {
                   </Pressable>
                 )}
               </View>
+              </EntranceView>
             ))}
           </View>
         )}

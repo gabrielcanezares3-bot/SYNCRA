@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { COLORS, RADIUS, SPACE } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
 
@@ -9,17 +9,33 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function AppButton({ title, icon, theme, disabled, centeredContent = false, createEventSpacing = false, removeOuterGlow = false, onPress }: Props) {
   const primary = theme === 'primary';
+  const reduceMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const glow = useSharedValue(0);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: disabled ? 0.45 : 1,
+    transform: [{ scale: scale.value }],
+  }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
 
   return (
     <AnimatedPressable
       accessibilityRole="button" accessibilityLabel={title} disabled={disabled} onPress={onPress}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 13, stiffness: 220 }); glow.value = withTiming(0, { duration: 180 }); }}
-      onPressIn={() => { scale.value = withSpring(0.965, { damping: 15, stiffness: 260 }); glow.value = withTiming(1, { duration: 140 }); }}
-      style={[styles.button, centeredContent && styles.centeredButton, createEventSpacing && styles.createEventSpacing, primary ? styles.primary : styles.secondary, removeOuterGlow && styles.noOuterGlow, disabled && styles.disabled, animatedStyle]}
+      onPressOut={() => {
+        if (reduceMotion) {
+          scale.value = 1;
+          glow.value = 0;
+          return;
+        }
+        scale.value = withSpring(1, { damping: 13, stiffness: 220 });
+        glow.value = withTiming(0, { duration: 180 });
+      }}
+      onPressIn={() => {
+        if (reduceMotion) return;
+        scale.value = withSpring(0.97, { damping: 15, stiffness: 260 });
+        glow.value = withTiming(1, { duration: 140 });
+      }}
+      style={[styles.button, centeredContent && styles.centeredButton, createEventSpacing && styles.createEventSpacing, primary ? styles.primary : styles.secondary, removeOuterGlow && styles.noOuterGlow, animatedStyle]}
     >
       {!removeOuterGlow && <Animated.View pointerEvents="none" style={[styles.pressGlow, primary && styles.pressGlowPrimary, glowStyle]} />}
       <View style={[styles.icon, centeredContent && styles.centeredIcon, primary ? styles.iconPrimary : styles.iconSecondary]}><Ionicons name={icon} size={19} color={primary ? '#FFFFFF' : COLORS.champagne} /></View>
@@ -53,5 +69,4 @@ const styles = StyleSheet.create({
   arrow: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   arrowPrimary: { backgroundColor: 'rgba(255,255,255,0.20)' },
   arrowSecondary: { backgroundColor: COLORS.champagneSoft, borderWidth: 1, borderColor: COLORS.champagneBorder },
-  disabled: { opacity: 0.45 },
 });

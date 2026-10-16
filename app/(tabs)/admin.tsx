@@ -1038,6 +1038,7 @@ export default function AdminScreen() {
             onPress={() => setMobileNavOpen(false)}
             style={StyleSheet.absoluteFill}
           />
+          <EntranceView>
           <View style={[styles.mobileMenu, { paddingTop: insets.top + SPACE.md, paddingBottom: insets.bottom + SPACE.md }]}>
             <View style={styles.mobileMenuHeader}>
               <View>
@@ -1084,6 +1085,7 @@ export default function AdminScreen() {
               <Ionicons name="chevron-forward" size={15} color={ADMIN_THEME.muted} />
             </Pressable>
           </View>
+          </EntranceView>
         </View>
       </Modal>
       <Modal
@@ -1098,6 +1100,7 @@ export default function AdminScreen() {
         <View style={[styles.modalBackdrop, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12, paddingHorizontal: isNarrow ? 12 : SPACE.lg }]}>
           <ScrollView contentContainerStyle={styles.modalScrollContent}>
             {detailsEvent && (
+              <EntranceView>
               <View style={styles.detailsCard}>
                 <View style={styles.detailsHeader}>
                   <View style={styles.rowCopy}>
@@ -1173,6 +1176,7 @@ export default function AdminScreen() {
                   </View>
                 )}
               </View>
+              </EntranceView>
             )}
           </ScrollView>
         </View>
