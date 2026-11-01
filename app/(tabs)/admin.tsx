@@ -1,7 +1,7 @@
 import EntranceView from '@/components/EntranceView';
 import { COLORS as SYNCRA_COLORS, RADIUS, SPACE } from '@/constants/colors';
 import { TYPOGRAPHY } from '@/constants/typography';
-import { useAuth } from '@/lib/auth';
+import { signOut, useAuth } from '@/lib/auth';
 import { buildQRPayload } from '@/lib/qr';
 import {
   checkAdministratorAccess,
@@ -61,20 +61,20 @@ const SECTIONS: { id: AdminSection; label: string; icon: keyof typeof Ionicons.g
 ];
 
 const ADMIN_THEME = {
-  background: '#0C0A12',
-  sidebar: '#08070D',
-  surface: '#171322',
-  surfaceRaised: '#201A30',
-  border: '#30283F',
-  text: '#F7F4FF',
-  muted: '#A49CB5',
-  accent: '#9A6BFF',
-  accentStrong: '#7650D8',
-  accentTint: 'rgba(154,107,255,0.15)',
-  cyan: '#58C9E8',
-  success: '#52D5A0',
-  warning: '#F4B454',
-  danger: '#FF718B',
+  background: '#F7F4FC',
+  sidebar: '#FBFAFE',
+  surface: '#FFFFFF',
+  surfaceRaised: '#F0EBFA',
+  border: '#E8E1F2',
+  text: '#302747',
+  muted: '#756B89',
+  accent: '#8068D8',
+  accentStrong: '#6551AE',
+  accentTint: 'rgba(128,104,216,0.13)',
+  cyan: '#62BDB6',
+  success: '#2D9B83',
+  warning: '#B77B32',
+  danger: '#C94F65',
 };
 
 const COLORS = {
@@ -458,6 +458,15 @@ export default function AdminScreen() {
       ) },
     ]);
   };
+  const logoutAdmin = async () => {
+    setError(null);
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (logoutError) {
+      setError(logoutError instanceof Error ? logoutError.message : 'Sign out failed. Please try again.');
+    }
+  };
 
   if (checking) {
     return <CenterState icon="shield-checkmark-outline" text="Verifying administrator access..." loading />;
@@ -516,13 +525,13 @@ export default function AdminScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open account and sign out"
-              onPress={() => router.push('/(tabs)/profile')}
+              accessibilityLabel="Sign out"
+              onPress={() => void logoutAdmin()}
               style={styles.accountButton}
             >
-              <Ionicons name="person-circle-outline" size={18} color={ADMIN_THEME.muted} />
-              <Text style={styles.accountButtonText}>Account settings</Text>
-              <Ionicons name="chevron-forward" size={15} color={ADMIN_THEME.muted} />
+              <Ionicons name="log-out-outline" size={18} color={ADMIN_THEME.muted} />
+              <Text style={styles.accountButtonText}>Sign out</Text>
+              <Ionicons name="arrow-forward" size={15} color={ADMIN_THEME.muted} />
             </Pressable>
           </View>
         </View>
@@ -540,11 +549,11 @@ export default function AdminScreen() {
           <View style={styles.mobileHeaderActions}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open account and sign out"
-              onPress={() => router.push('/(tabs)/profile')}
+              accessibilityLabel="Sign out"
+              onPress={() => void logoutAdmin()}
               style={styles.headerIcon}
             >
-              <Ionicons name="person-circle-outline" size={23} color={ADMIN_THEME.accent} />
+              <Ionicons name="log-out-outline" size={23} color={ADMIN_THEME.accent} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -578,7 +587,7 @@ export default function AdminScreen() {
               <Text style={styles.pageSubtitle}>{sectionSubtitle(section)}</Text>
             </View>
             <View style={[styles.headerActions, !isDesktop && styles.mobilePageActions]}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open account notifications" onPress={() => router.push('/(tabs)/profile')} style={styles.headerIcon}><Ionicons name="notifications-outline" size={20} color={ADMIN_THEME.accent} /></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => void logoutAdmin()} style={styles.headerIcon}><Ionicons name="log-out-outline" size={20} color={ADMIN_THEME.accent} /></Pressable>
               <View style={styles.verifiedPill}><View style={styles.verifiedDot} /><Text style={styles.verifiedText}>Verified admin</Text></View>
             </View>
           </View>
@@ -1076,13 +1085,13 @@ export default function AdminScreen() {
               accessibilityRole="button"
               onPress={() => {
                 setMobileNavOpen(false);
-                router.push('/(tabs)/profile');
+                void logoutAdmin();
               }}
               style={styles.accountButton}
             >
-              <Ionicons name="person-circle-outline" size={18} color={ADMIN_THEME.muted} />
-              <Text style={styles.accountButtonText}>Account settings</Text>
-              <Ionicons name="chevron-forward" size={15} color={ADMIN_THEME.muted} />
+              <Ionicons name="log-out-outline" size={18} color={ADMIN_THEME.muted} />
+              <Text style={styles.accountButtonText}>Sign out</Text>
+              <Ionicons name="arrow-forward" size={15} color={ADMIN_THEME.muted} />
             </Pressable>
           </View>
           </EntranceView>

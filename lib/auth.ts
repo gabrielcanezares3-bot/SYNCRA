@@ -34,9 +34,15 @@ let authListenerStarted = false;
 function ensureAuthListener() {
   if (authListenerStarted) return;
   authListenerStarted = true;
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setAuth(session);
+  void supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      globalState = { session: null, user: null, loading: false };
+      notify();
+      return;
+    }
+    setAuth(data.session);
   });
+  supabase.auth.onAuthStateChange((_event, session) => setAuth(session));
 }
 
 function subscribe(onStoreChange: () => void) {

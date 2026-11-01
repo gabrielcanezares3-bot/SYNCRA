@@ -68,6 +68,12 @@ export default function Index() {
   }, [verifyHomeAccess]));
 
   useEffect(() => {
+    if (homeAccess === 'administrator') {
+      router.replace('/(tabs)/admin');
+    }
+  }, [homeAccess]);
+
+  useEffect(() => {
     let mounted = true;
     AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
       if (mounted) setReduceMotion(reduced);
@@ -145,56 +151,10 @@ export default function Index() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <AmbientBackground graphicSide="right" />
-        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: tabContentBottom }]} showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
-            <View style={styles.topBar}>
-              <View style={styles.greeting}>
-                <Text style={styles.eyebrow}>SYNCRA · ADMINISTRATION</Text>
-                <Text style={styles.greetingTitle}>{firstName ? `Welcome, ${firstName}` : 'Welcome, Administrator'}</Text>
-                <Text style={styles.greetingDate}>Your campus at a glance</Text>
-              </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open administrator profile" onPress={() => router.push('/profile')} style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}>
-                <Text style={styles.avatarText}>{avatarInitial}</Text>
-                <View style={styles.avatarStatus} />
-              </Pressable>
-            </View>
-
-            <View style={styles.adminWelcomeCard}>
-              <View style={styles.adminWelcomeIcon}><Ionicons name="shield-checkmark-outline" size={21} color="#FFFFFF" /></View>
-              <Text style={styles.adminWelcomeEyebrow}>ADMIN ACCESS VERIFIED</Text>
-              <Text style={styles.adminWelcomeTitle}>Manage your campus with confidence.</Text>
-              <Text style={styles.adminWelcomeText}>Review people, events, attendance, and administrative activity from one place.</Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/admin')} style={({ pressed }) => [styles.adminConsoleButton, pressed && styles.actionPressed]}>
-                <Text style={styles.adminConsoleButtonText}>Open Admin Console</Text>
-                <Ionicons name="arrow-forward" size={17} color={COLORS.primary} />
-              </Pressable>
-            </View>
-
-            <View style={styles.sectionHeading}>
-              <View>
-                <Text style={styles.sectionEyebrow}>ADMIN WORKSPACE</Text>
-                <Text style={styles.sectionTitle}>Management shortcuts</Text>
-              </View>
-              <Ionicons name="grid-outline" size={18} color={COLORS.primary} />
-            </View>
-            <View style={[styles.adminShortcutGrid, width < 360 && styles.adminShortcutGridNarrow]}>
-              {ADMIN_HOME_SHORTCUTS.map((shortcut) => (
-                <Pressable
-                  key={shortcut.section}
-                  accessibilityRole="button"
-                  onPress={() => router.push({ pathname: '/(tabs)/admin', params: { section: shortcut.section } })}
-                  style={({ pressed }) => [styles.adminShortcut, pressed && styles.pressed]}
-                >
-                  <View style={[styles.adminShortcutIcon, { backgroundColor: shortcut.tint }]}>
-                    <Ionicons name={shortcut.icon} size={19} color={shortcut.color} />
-                  </View>
-                  <Text style={styles.adminShortcutTitle}>{shortcut.title}</Text>
-                  <Text style={styles.adminShortcutSubtitle}>{shortcut.subtitle}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </ScrollView>
+        <View style={styles.accessState}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={styles.accessStateText}>Opening your administrator dashboard...</Text>
+        </View>
       </SafeAreaView>
     );
   }

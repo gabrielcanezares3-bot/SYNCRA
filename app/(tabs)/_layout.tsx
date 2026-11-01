@@ -208,14 +208,16 @@ export default function TabLayout() {
     };
   }, [session]);
 
-  const tabOrder = isTeacherNavigation
+  const tabOrder = isAdministrator
+    ? ['index'] as const
+    : isTeacherNavigation
     ? ['index', 'teacher', 'history', 'notifications', 'profile', 'scan'] as const
     : ['index', 'history', 'scan', 'profile', 'notifications', 'teacher'] as const;
 
   const renderTab = (name: (typeof tabOrder)[number]) => {
     switch (name) {
       case 'index':
-        return <Tabs.Screen key={name} name="index" options={{ title: 'Home' }} />;
+        return <Tabs.Screen key={name} name="index" options={{ title: isAdministrator ? 'Dashboard' : 'Home', href: isAdministrator ? null : undefined }} />;
       case 'teacher':
         return <Tabs.Screen key={name} name="teacher" options={{ title: isTeacherNavigation ? 'Events' : 'Teacher', href: isTeacherNavigation ? undefined : null }} />;
       case 'history':
@@ -294,7 +296,7 @@ export default function TabLayout() {
           shadowOpacity: 0.12,
           shadowRadius: 20,
           shadowOffset: { width: 0, height: 8 },
-          display: isAdministrator === null ? 'none' : 'flex',
+          display: isAdministrator === null || isAdministrator ? 'none' : 'flex',
         },
         tabBarActiveTintColor: COLORS.textPrimary,
         tabBarInactiveTintColor: COLORS.textSecondary,

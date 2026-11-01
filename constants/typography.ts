@@ -7,8 +7,8 @@ export const TYPOGRAPHY = {
   numberFontFamily: 'SpaceGrotesk_700Bold',
   display: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 32,
+    lineHeight: 38,
     letterSpacing: -0.9,
   },
   screenTitle: {
